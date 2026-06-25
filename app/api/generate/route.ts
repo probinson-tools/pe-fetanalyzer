@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     ].join("");
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-6-20251101",
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[/api/generate]", message, err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

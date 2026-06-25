@@ -1,43 +1,69 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
-import type { GenerateResponse, SelectorResult } from "@/lib/types";
+import type { GenerateResponse } from "@/lib/types";
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `You are an expert at analyzing DOM element snapshots and generating optimal CSS selectors.
+const SYSTEM_PROMPT = `You are an expert at analyzing DOM element snapshots and generating optimal CSS selectors for proxy-translated site testing.
 
-Given a JSON array of element snapshots (each with cssSelector, cssPath, and element HTML fields) and an optional target text, you generate the most specific, stable CSS selectors for targeting those elements.
+Given a JSON snapshot (an object whose keys are segment names; each value has cssSelector, cssPath, and element HTML fields), generate grouped CSS selectors.
 
-Selector preference order:
-1. ID-based selectors (#id) — most stable
-2. Unique attribute selectors ([data-testid="..."], [aria-label="..."], etc.)
-3. Unique class combinations (.parent .child)
-4. Structural/positional selectors (nth-child) — least preferred, use only when necessary
+## Selector quality tiers
+For each target, produce exactly three selectors ranked by quality:
 
-For each selector, provide:
-- The CSS selector string
-- A brief specificity label (e.g., "ID-based", "Attribute-based", "Class combination", "Structural")
-- A one-sentence explanation of why this selector was chosen
+- good: A structural or positional selector (e.g. nth-child, descendant by tag). Works but fragile to DOM changes.
+- better: A class combination or attribute-presence selector. More semantic and stable than positional.
+- best: An ID-based or uniquely-identifying data attribute selector ([data-testid="..."], [aria-label="..."], #id). Most resilient to DOM churn. If no ID or unique attribute exists, use the most distinctive combination of classes and attributes available.
 
-Respond with valid JSON matching this exact schema:
+For each SelectorResult provide:
+- selector: the CSS selector string
+- specificity: a short label — one of "ID-based", "Attribute-based", "Class combination", "Structural"
+- explanation: one sentence explaining why this selector was chosen
+
+## Mode A — Target texts supplied
+When target text strings are provided, return one group per string. Match segments whose element text CONTAINS the target string (case-insensitive substring match — not exact equality). The targetText field echoes back the user's original search string exactly as supplied.
+
+If a target string matches multiple segments (e.g. duplicated elements for mobile/desktop), prefer the segment with the most stable unique selector attributes.
+
+## Mode B — Auto-detect non-translatable text
+When no target texts are supplied, analyze the snapshot and identify elements whose visible text is unlikely to be machine-translated:
+- Proper names (people, companies, brands, product names)
+- User-generated content (usernames, account identifiers, display names)
+- Addresses, phone numbers, postal codes
+- Legal entity names, registered trademarks
+- Numeric codes, SKUs, order/reference numbers
+
+Aim to identify 3–8 distinct non-translatable texts. Use the actual text content as the targetText value. If the snapshot contains none, return an empty groups array and explain in the summary.
+
+## Reconstruct HTML (conditional)
+When asked to reconstruct HTML: examine the element HTML fragments in the snapshot and reconstruct what the original pre-translation HTML page structure would have looked like. Format as readable, indented HTML. Return it as the reconstructedHtml field. Omit this field entirely if not requested.
+
+## Response schema
+Respond with valid JSON matching this exact schema. No markdown fences, no extra keys:
+
 {
-  "selectors": [
+  "groups": [
     {
-      "selector": "string",
-      "specificity": "string",
-      "explanation": "string"
+      "targetText": "string",
+      "good":   { "selector": "string", "specificity": "string", "explanation": "string" },
+      "better": { "selector": "string", "specificity": "string", "explanation": "string" },
+      "best":   { "selector": "string", "specificity": "string", "explanation": "string" }
     }
   ],
-  "summary": "string"
+  "summary": "string",
+  "reconstructedHtml": "string (omit field entirely if not requested)"
 }
 
-The summary should be 1-2 sentences describing the overall approach and confidence level.
-Return only the JSON object, no markdown fences.`;
+The summary should be 1–2 sentences: how many groups were produced, whether auto-detection or target matching was used, and overall confidence.`;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { jsonInput, targetText } = body as { jsonInput: string; targetText?: string };
+    const { jsonInput, targetTexts, reconstructHtml } = body as {
+      jsonInput: string;
+      targetTexts?: string[];
+      reconstructHtml?: boolean;
+    };
 
     if (!jsonInput || typeof jsonInput !== "string") {
       return NextResponse.json({ error: "jsonInput is required" }, { status: 400 });
@@ -50,16 +76,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON input" }, { status: 400 });
     }
 
+    const cleanedTargets = (targetTexts ?? []).map((t) => t.trim()).filter(Boolean);
+    const hasTargets = cleanedTargets.length > 0;
+
+    const targetSection = hasTargets
+      ? `Target text strings to locate (substring match, one group per string):\n${cleanedTargets.map((t, i) => `${i + 1}. "${t}"`).join("\n")}`
+      : "No target text provided — auto-detect non-translatable text elements.";
+
+    const htmlSection = reconstructHtml
+      ? "\nAlso reconstruct the original pre-translation HTML source from the snapshot."
+      : "";
+
     const userMessage = [
       `Element snapshot JSON:\n${JSON.stringify(parsed, null, 2)}`,
-      targetText?.trim()
-        ? `\nTarget text to find: "${targetText.trim()}"`
-        : "\nNo specific target text provided — generate selectors for all elements in the snapshot.",
+      `\n${targetSection}${htmlSection}`,
     ].join("");
 
     const message = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
@@ -69,7 +104,6 @@ export async function POST(req: NextRequest) {
       .map((b) => (b as { type: "text"; text: string }).text)
       .join("");
 
-    // Strip markdown code fences if Claude wrapped the JSON
     const cleaned = rawText
       .trim()
       .replace(/^```(?:json)?\s*/i, "")
@@ -83,6 +117,14 @@ export async function POST(req: NextRequest) {
       console.error("[/api/generate] raw model output:", rawText);
       return NextResponse.json(
         { error: "Model returned malformed JSON. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    if (!Array.isArray(result.groups)) {
+      console.error("[/api/generate] missing groups array:", result);
+      return NextResponse.json(
+        { error: "Model returned unexpected structure. Please try again." },
         { status: 500 }
       );
     }

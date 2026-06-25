@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AnalysisState, SelectorResult } from "@/lib/types";
+import type { AnalysisState, SelectorResult, SelectorGroup } from "@/lib/types";
 
 const SPECIFICITY_COLORS: Record<string, string> = {
   "ID-based": "text-blue-400 bg-blue-400/10 border-blue-400/20",
@@ -17,6 +17,12 @@ function specificityClass(specificity: string): string {
   return "text-slate-400 bg-slate-400/10 border-slate-400/20";
 }
 
+const TIER_CONFIG = {
+  good:   { label: "Good",   color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
+  better: { label: "Better", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
+  best:   { label: "Best",   color: "text-blue-400 bg-blue-400/10 border-blue-400/20" },
+} as const;
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -29,7 +35,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={copy}
-      title="Copy selector"
+      title="Copy"
       className="shrink-0 rounded px-2 py-0.5 text-xs border border-white/10 text-slate-400 hover:text-slate-200 hover:border-white/20 transition-colors"
     >
       {copied ? "Copied!" : "Copy"}
@@ -37,24 +43,76 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function SelectorCard({ result }: { result: SelectorResult }) {
+function TierRow({ tier, result }: { tier: keyof typeof TIER_CONFIG; result: SelectorResult }) {
+  const cfg = TIER_CONFIG[tier];
   return (
-    <div className="rounded-lg border border-white/8 bg-[#21253a] p-4 flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
-        <code className="font-code text-blue-300 break-all flex-1">{result.selector}</code>
+    <div className="px-4 py-3 flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className={["text-xs font-semibold px-2 py-0.5 rounded border tracking-wide", cfg.color].join(" ")}>
+          {cfg.label}
+        </span>
         <CopyButton text={result.selector} />
       </div>
+      <code className="font-code text-blue-300 text-sm break-all">{result.selector}</code>
       <div className="flex items-center gap-2">
-        <span
-          className={[
-            "inline-block px-2 py-0.5 rounded text-xs font-semibold border tracking-wide",
-            specificityClass(result.specificity),
-          ].join(" ")}
-        >
+        <span className={["text-xs px-1.5 py-0.5 rounded border", specificityClass(result.specificity)].join(" ")}>
           {result.specificity}
         </span>
       </div>
       <p className="text-xs text-slate-400 leading-relaxed">{result.explanation}</p>
+    </div>
+  );
+}
+
+function SelectorGroupCard({ group }: { group: SelectorGroup }) {
+  return (
+    <div className="rounded-lg border border-white/8 bg-[#1A1D2E] overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-white/8 bg-[#21253a]">
+        <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Target</p>
+        <p className="text-sm text-slate-200 font-medium mt-0.5">{group.targetText}</p>
+      </div>
+      <div className="flex flex-col divide-y divide-white/6">
+        {(["good", "better", "best"] as const).map((tier) => (
+          <TierRow key={tier} tier={tier} result={group[tier]} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReconstructedHtmlSection({ html }: { html: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-white/8 bg-[#1A1D2E] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/4 transition-colors"
+      >
+        <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
+          Reconstructed HTML Source
+        </span>
+        <svg
+          className={["w-4 h-4 text-slate-500 transition-transform", open ? "rotate-180" : ""].join(" ")}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="border-t border-white/8 p-4">
+          <div className="flex justify-end mb-2">
+            <CopyButton text={html} />
+          </div>
+          <pre className="font-code text-xs text-slate-300 overflow-x-auto whitespace-pre leading-relaxed">
+            {html}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
@@ -76,9 +134,7 @@ export default function ResultsPanel({ state }: ResultsPanelProps) {
           Paste your element snapshot JSON and click <span className="text-slate-200 font-medium">Generate Selectors</span>.
         </p>
         <p className="text-xs text-slate-600">
-          The JSON should be an array of objects with <code className="font-code text-slate-500">cssSelector</code>,{" "}
-          <code className="font-code text-slate-500">cssPath</code>, and{" "}
-          <code className="font-code text-slate-500">element</code> fields.
+          Results are grouped by target text with Good / Better / Best selector tiers.
         </p>
       </div>
     );
@@ -107,7 +163,7 @@ export default function ResultsPanel({ state }: ResultsPanelProps) {
     );
   }
 
-  const { selectors, summary } = state.data;
+  const { groups, summary, reconstructedHtml } = state.data;
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
@@ -120,16 +176,19 @@ export default function ResultsPanel({ state }: ResultsPanelProps) {
       {/* Count */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-          {selectors.length} selector{selectors.length !== 1 ? "s" : ""} generated
+          {groups.length} group{groups.length !== 1 ? "s" : ""}
         </span>
       </div>
 
-      {/* Selector Cards */}
-      <div className="flex flex-col gap-3">
-        {selectors.map((result, i) => (
-          <SelectorCard key={i} result={result} />
+      {/* Grouped selector cards */}
+      <div className="flex flex-col gap-4">
+        {groups.map((group, i) => (
+          <SelectorGroupCard key={i} group={group} />
         ))}
       </div>
+
+      {/* Reconstructed HTML */}
+      {reconstructedHtml && <ReconstructedHtmlSection html={reconstructedHtml} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 export interface GenerateRequest {
   jsonInput: string;
-  targetText?: string;
+  targetTexts?: string[];
+  reconstructHtml?: boolean;
 }
 
 export interface SelectorResult {
@@ -9,9 +10,17 @@ export interface SelectorResult {
   explanation: string;
 }
 
+export interface SelectorGroup {
+  targetText: string;
+  good: SelectorResult;
+  better: SelectorResult;
+  best: SelectorResult;
+}
+
 export interface GenerateResponse {
-  selectors: SelectorResult[];
+  groups: SelectorGroup[];
   summary: string;
+  reconstructedHtml?: string;
 }
 
 export type AnalysisState =

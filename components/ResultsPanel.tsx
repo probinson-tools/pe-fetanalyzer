@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AnalysisState, SelectorResult, SelectorGroup } from "@/lib/types";
 
 const SPECIFICITY_COLORS: Record<string, string> = {
@@ -64,12 +64,29 @@ function TierRow({ tier, result }: { tier: keyof typeof TIER_CONFIG; result: Sel
   );
 }
 
-function SelectorGroupCard({ group }: { group: SelectorGroup }) {
+function SelectorGroupCard({
+  group,
+  onViewHtml,
+}: {
+  group: SelectorGroup;
+  onViewHtml?: () => void;
+}) {
   return (
     <div className="rounded-lg border border-white/8 bg-[#1A1D2E] overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-white/8 bg-[#21253a]">
-        <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Target</p>
-        <p className="text-sm text-slate-200 font-medium mt-0.5">{group.targetText}</p>
+      <div className="px-4 py-2.5 border-b border-white/8 bg-[#21253a] flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Target</p>
+          <p className="text-sm text-slate-200 font-medium mt-0.5">{group.targetText}</p>
+        </div>
+        {onViewHtml && (
+          <button
+            type="button"
+            onClick={onViewHtml}
+            className="shrink-0 text-xs px-2 py-1 rounded border border-white/15 text-slate-400 hover:text-slate-200 hover:border-white/25 transition-colors"
+          >
+            View HTML
+          </button>
+        )}
       </div>
       <div className="flex flex-col divide-y divide-white/6">
         {(["good", "better", "best"] as const).map((tier) => (
@@ -80,39 +97,81 @@ function SelectorGroupCard({ group }: { group: SelectorGroup }) {
   );
 }
 
-function ReconstructedHtmlSection({ html }: { html: string }) {
-  const [open, setOpen] = useState(false);
+function HtmlModal({
+  html,
+  targetText,
+  onClose,
+}: {
+  html: string;
+  targetText: string;
+  onClose: () => void;
+}) {
+  const firstMatchRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    firstMatchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const lines = html.split("\n");
+  const lowerTarget = targetText.toLowerCase();
+  let firstMatchSet = false;
 
   return (
-    <div className="rounded-lg border border-white/8 bg-[#1A1D2E] overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/4 transition-colors"
-      >
-        <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
-          Reconstructed HTML Source
-        </span>
-        <svg
-          className={["w-4 h-4 text-slate-500 transition-transform", open ? "rotate-180" : ""].join(" ")}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <div className="border-t border-white/8 p-4">
-          <div className="flex justify-end mb-2">
-            <CopyButton text={html} />
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-6"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="max-w-4xl w-full bg-[#1A1D2E] rounded-xl border border-white/10 flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8 shrink-0">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase">Reconstructed HTML</p>
+            <p className="text-sm text-slate-300 font-medium truncate mt-0.5">
+              Scrolled to: <span className="text-yellow-300">{targetText}</span>
+            </p>
           </div>
-          <pre className="font-code text-xs text-slate-300 overflow-x-auto whitespace-pre leading-relaxed">
-            {html}
+          <CopyButton text={html} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-200 transition-colors text-xl leading-none"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto p-4">
+          <pre className="font-code text-xs text-slate-300 whitespace-pre leading-relaxed">
+            {lines.map((line, i) => {
+              const isMatch = line.toLowerCase().includes(lowerTarget);
+              let ref: React.RefObject<HTMLSpanElement | null> | undefined;
+              if (isMatch && !firstMatchSet) {
+                firstMatchSet = true;
+                ref = firstMatchRef;
+              }
+              return (
+                <span
+                  key={i}
+                  ref={ref}
+                  className={isMatch ? "block bg-yellow-400/15 rounded" : "block"}
+                >
+                  {line || " "}
+                </span>
+              );
+            })}
           </pre>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -122,6 +181,8 @@ interface ResultsPanelProps {
 }
 
 export default function ResultsPanel({ state }: ResultsPanelProps) {
+  const [htmlModal, setHtmlModal] = useState<{ targetText: string } | null>(null);
+
   if (state.status === "idle") {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
@@ -166,29 +227,44 @@ export default function ResultsPanel({ state }: ResultsPanelProps) {
   const { groups, summary, reconstructedHtml } = state.data;
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
-      {/* Summary */}
-      <div className="rounded-lg border border-white/8 bg-[#1A1D2E] px-4 py-3">
-        <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-1">Summary</p>
-        <p className="text-sm text-slate-300 leading-relaxed">{summary}</p>
-      </div>
+    <>
+      {htmlModal && reconstructedHtml && (
+        <HtmlModal
+          html={reconstructedHtml}
+          targetText={htmlModal.targetText}
+          onClose={() => setHtmlModal(null)}
+        />
+      )}
 
-      {/* Count */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
-          {groups.length} group{groups.length !== 1 ? "s" : ""}
-        </span>
-      </div>
+      <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
+        {/* Summary */}
+        <div className="rounded-lg border border-white/8 bg-[#1A1D2E] px-4 py-3">
+          <p className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-1">Summary</p>
+          <p className="text-sm text-slate-300 leading-relaxed">{summary}</p>
+        </div>
 
-      {/* Grouped selector cards */}
-      <div className="flex flex-col gap-4">
-        {groups.map((group, i) => (
-          <SelectorGroupCard key={i} group={group} />
-        ))}
-      </div>
+        {/* Count */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+            {groups.length} group{groups.length !== 1 ? "s" : ""}
+          </span>
+        </div>
 
-      {/* Reconstructed HTML */}
-      {reconstructedHtml && <ReconstructedHtmlSection html={reconstructedHtml} />}
-    </div>
+        {/* Grouped selector cards */}
+        <div className="flex flex-col gap-4">
+          {groups.map((group, i) => (
+            <SelectorGroupCard
+              key={i}
+              group={group}
+              onViewHtml={
+                reconstructedHtml
+                  ? () => setHtmlModal({ targetText: group.targetText })
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

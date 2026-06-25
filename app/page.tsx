@@ -1,0 +1,42 @@
+"use client";
+
+import { useState } from "react";
+import InputPanel from "@/components/InputPanel";
+import ResultsPanel from "@/components/ResultsPanel";
+import type { AnalysisState } from "@/lib/types";
+
+export default function Home() {
+  const [analysisState, setAnalysisState] = useState<AnalysisState>({ status: "idle" });
+
+  return (
+    <div className="flex flex-col h-full bg-[#0F1117]">
+      {/* Navbar */}
+      <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/8 bg-[#0F1117]">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-slate-200 tracking-tight">pe-fetanalyzer</span>
+          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-600/20 text-blue-400 border border-blue-500/30 tracking-wide uppercase">
+            CSS Selector
+          </span>
+        </div>
+        <p className="text-xs text-slate-500 hidden sm:block">
+          Paste an element snapshot JSON → get optimal CSS selectors
+        </p>
+      </header>
+
+      {/* Main Two-Panel Layout */}
+      <main className="flex flex-1 overflow-hidden">
+        {/* Left: Input Panel */}
+        <aside className="w-[420px] shrink-0 border-r border-white/8 bg-[#1A1D2E] flex flex-col overflow-y-auto p-5">
+          <h2 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-4">Input</h2>
+          <InputPanel onResult={setAnalysisState} />
+        </aside>
+
+        {/* Right: Results Panel */}
+        <section className="flex-1 overflow-y-auto p-5 bg-[#0F1117]">
+          <h2 className="text-xs font-semibold tracking-wider text-slate-500 uppercase mb-4">Results</h2>
+          <ResultsPanel state={analysisState} />
+        </section>
+      </main>
+    </div>
+  );
+}

@@ -69,10 +69,18 @@ export async function POST(req: NextRequest) {
       .map((b) => (b as { type: "text"; text: string }).text)
       .join("");
 
+    // Strip markdown code fences if Claude wrapped the JSON
+    const cleaned = rawText
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
     let result: GenerateResponse;
     try {
-      result = JSON.parse(rawText) as GenerateResponse;
+      result = JSON.parse(cleaned) as GenerateResponse;
     } catch {
+      console.error("[/api/generate] raw model output:", rawText);
       return NextResponse.json(
         { error: "Model returned malformed JSON. Please try again." },
         { status: 500 }

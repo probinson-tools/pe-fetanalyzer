@@ -16,7 +16,7 @@ export default function AboutModal({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-6"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="max-w-2xl w-full bg-[#1A1D2E] rounded-xl border border-white/10 flex flex-col">
+      <div className="max-w-[54rem] w-full bg-[#1A1D2E] rounded-xl border border-white/10 flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-white/8">
           <div>

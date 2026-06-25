@@ -26,9 +26,9 @@ When target text strings are provided, return one group per string. Match segmen
 If a target string matches multiple segments (e.g. duplicated elements for mobile/desktop), prefer the segment with the most stable unique selector attributes.
 
 ## Mode B — Auto-detect non-translatable text
-When no target texts are supplied, analyze each segment's `element` field only. Extract the visible text content rendered inside the HTML tags (i.e. strip all HTML tags and read only the inner text). Do NOT use cssSelector, cssPath, class names, attribute values, or any other field as text candidates.
+When no target texts are supplied, analyze each segment's "element" field only. Extract the visible text content rendered inside the HTML tags (i.e. strip all HTML tags and read only the inner text). Do NOT use cssSelector, cssPath, class names, attribute values, or any other field as text candidates.
 
-From the visible inner text found in `element` fields, identify text that is unlikely to be machine-translated:
+From the visible inner text found in "element" fields, identify text that is unlikely to be machine-translated:
 - Proper names (people, companies, brands, product names)
 - User-generated content (usernames, account identifiers, display names)
 - Addresses, phone numbers, postal codes

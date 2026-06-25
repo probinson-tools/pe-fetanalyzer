@@ -67,11 +67,13 @@ The summary should be 1–2 sentences: how many groups were produced, whether au
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { jsonInput, targetTexts, reconstructHtml } = body as {
+    const { jsonInput, targetTexts, reconstructHtml, model } = body as {
       jsonInput: string;
       targetTexts?: string[];
       reconstructHtml?: boolean;
+      model?: string;
     };
+    const selectedModel = model === "claude-sonnet-4-6" ? "claude-sonnet-4-6" : "claude-haiku-4-5";
 
     if (!jsonInput || typeof jsonInput !== "string") {
       return NextResponse.json({ error: "jsonInput is required" }, { status: 400 });
@@ -101,7 +103,7 @@ export async function POST(req: NextRequest) {
     ].join("");
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: selectedModel,
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],

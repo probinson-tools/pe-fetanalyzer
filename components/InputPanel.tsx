@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AnalysisState } from "@/lib/types";
+import type { AnalysisState, ModelChoice } from "@/lib/types";
 
 interface InputPanelProps {
   onResult: (state: AnalysisState) => void;
@@ -11,6 +11,7 @@ export default function InputPanel({ onResult }: InputPanelProps) {
   const [jsonInput, setJsonInput] = useState("");
   const [targetTexts, setTargetTexts] = useState<string[]>([""]);
   const [reconstructHtml, setReconstructHtml] = useState(false);
+  const [model, setModel] = useState<ModelChoice>("claude-haiku-4-5");
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,6 +64,7 @@ export default function InputPanel({ onResult }: InputPanelProps) {
           jsonInput,
           targetTexts: cleanedTargets.length > 0 ? cleanedTargets : undefined,
           reconstructHtml: reconstructHtml || undefined,
+          model,
         }),
       });
 
@@ -175,24 +177,35 @@ export default function InputPanel({ onResult }: InputPanelProps) {
           </p>
         </div>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="w-full rounded-lg py-2.5 px-4 text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              Analyzing…
-            </>
-          ) : (
-            "Generate Selectors"
-          )}
-        </button>
+        {/* Submit — split control: model picker + button */}
+        <div className={["flex w-full rounded-lg overflow-hidden border transition-opacity", !canSubmit ? "opacity-40" : "opacity-100"].join(" ")} style={{borderColor: "#2563eb"}}>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value as ModelChoice)}
+            disabled={loading}
+            className="bg-blue-700 text-white text-sm px-2 py-2.5 border-r border-blue-500 focus:outline-none cursor-pointer disabled:cursor-not-allowed"
+          >
+            <option value="claude-haiku-4-5">Haiku</option>
+            <option value="claude-sonnet-4-6">Sonnet</option>
+          </select>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="flex-1 py-2.5 px-4 text-sm font-semibold bg-blue-600 text-white hover:bg-blue-500 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Analyzing…
+              </>
+            ) : (
+              "Generate Selectors"
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );

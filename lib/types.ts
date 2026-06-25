@@ -1,7 +1,10 @@
+export type ModelChoice = "claude-haiku-4-5" | "claude-sonnet-4-6";
+
 export interface GenerateRequest {
   jsonInput: string;
   targetTexts?: string[];
   reconstructHtml?: boolean;
+  model?: ModelChoice;
 }
 
 export interface SelectorResult {

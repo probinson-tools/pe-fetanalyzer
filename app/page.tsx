@@ -3,13 +3,17 @@
 import { useState } from "react";
 import InputPanel from "@/components/InputPanel";
 import ResultsPanel from "@/components/ResultsPanel";
+import AboutModal from "@/components/AboutModal";
 import type { AnalysisState } from "@/lib/types";
 
 export default function Home() {
   const [analysisState, setAnalysisState] = useState<AnalysisState>({ status: "idle" });
+  const [showAbout, setShowAbout] = useState(false);
 
   return (
     <div className="flex flex-col h-full bg-[#0F1117]">
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+
       {/* Navbar */}
       <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/8 bg-[#0F1117]">
         <div className="flex items-center gap-3">
@@ -18,9 +22,18 @@ export default function Home() {
             CSS Selector
           </span>
         </div>
-        <p className="text-xs text-slate-500 hidden sm:block">
-          Paste an element snapshot JSON → get optimal CSS selectors
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-slate-500 hidden sm:block">
+            Paste an element snapshot JSON → get optimal CSS selectors
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAbout(true)}
+            className="text-xs text-slate-400 hover:text-slate-200 border border-white/10 hover:border-white/20 rounded px-2.5 py-1 transition-colors shrink-0"
+          >
+            About FET Analyzer
+          </button>
+        </div>
       </header>
 
       {/* Main Two-Panel Layout */}

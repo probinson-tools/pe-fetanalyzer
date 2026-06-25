@@ -18,9 +18,9 @@ function specificityClass(specificity: string): string {
 }
 
 const TIER_CONFIG = {
-  good:   { label: "Good",   color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
-  better: { label: "Better", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
-  best:   { label: "Best",   color: "text-blue-400 bg-blue-400/10 border-blue-400/20" },
+  good:   { label: "Option 1", color: "text-amber-400 bg-amber-400/10 border-amber-400/20" },
+  better: { label: "Option 2", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
+  best:   { label: "Option 3", color: "text-blue-400 bg-blue-400/10 border-blue-400/20" },
 } as const;
 
 function CopyButton({ text }: { text: string }) {

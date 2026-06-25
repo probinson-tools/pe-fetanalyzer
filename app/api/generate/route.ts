@@ -20,11 +20,20 @@ For each SelectorResult provide:
 - specificity: a short label — one of "ID-based", "Attribute-based", "Class combination", "Structural"
 - explanation: one sentence explaining why this selector was chosen
 
-## Attribute selector formatting
-Never wrap attribute values in quotes. Use the unquoted form for all attribute selectors.
-Correct:   li[data-fgx-item-template={firstName}'s Account]
-Incorrect: li[data-fgx-item-template="{firstName}'s Account"]
-This applies to every attribute selector regardless of the value's content.
+## Attribute selector formatting — MANDATORY RULE
+You MUST NEVER use quotes around attribute values in CSS selectors. This is a hard requirement with no exceptions.
+
+WRONG (never do this):
+  p[data-testid="my-shortcuts-label"]
+  li[data-fgx-item-template="{firstName}'s Account"]
+  span[aria-label="Sign Out"]
+
+RIGHT (always do this):
+  p[data-testid=my-shortcuts-label]
+  li[data-fgx-item-template={firstName}'s Account]
+  span[aria-label=Sign Out]
+
+Remove all double quotes and single quotes from inside [ ] brackets in every selector you produce.
 
 ## Mode A — Target texts supplied
 When target text strings are provided, return one group per string. Match segments whose element text CONTAINS the target string (case-insensitive substring match — not exact equality). The targetText field echoes back the user's original search string exactly as supplied.

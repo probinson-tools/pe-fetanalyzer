@@ -82,7 +82,7 @@ function SelectorGroupCard({
           <button
             type="button"
             onClick={onViewHtml}
-            className="shrink-0 text-xs px-2 py-1 rounded border border-white/15 text-slate-400 hover:text-slate-200 hover:border-white/25 transition-colors"
+            className="shrink-0 text-xs px-2 py-1 rounded border border-blue-500/40 text-blue-400 hover:text-blue-300 hover:border-blue-400/60 transition-colors"
           >
             View HTML
           </button>

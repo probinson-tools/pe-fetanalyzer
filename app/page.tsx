@@ -17,14 +17,13 @@ export default function Home() {
 
       {/* Navbar */}
       <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/8 bg-[#0F1117]">
-        <Image
-          src="/logo-marketfully-dark.svg"
-          alt="Marketfully"
-          width={119}
-          height={28}
-          priority
+        <a
+          href="https://pe-commandcenter.vercel.app"
+          title="PE Command Center"
           className="hidden md:block absolute left-1/2 -translate-x-1/2"
-        />
+        >
+          <Image src="/logo-marketfully-dark.svg" alt="Marketfully" width={119} height={28} priority />
+        </a>
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-slate-200 tracking-tight">pe-fetanalyzer</span>
           <span className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-600/20 text-blue-400 border border-blue-500/30 tracking-wide uppercase">

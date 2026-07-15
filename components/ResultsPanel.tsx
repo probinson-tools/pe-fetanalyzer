@@ -97,6 +97,23 @@ function SelectorGroupCard({
   );
 }
 
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&reg;/gi, "®")
+    .replace(/&copy;/gi, "©")
+    .replace(/&trade;/gi, "™")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, " ");
+}
+
+function normalizeForMatch(s: string): string {
+  return decodeEntities(s).normalize("NFC").toLowerCase();
+}
+
 function HtmlModal({
   html,
   targetText,
@@ -121,7 +138,7 @@ function HtmlModal({
   }, [onClose]);
 
   const lines = html.split("\n");
-  const lowerTarget = targetText.toLowerCase();
+  const normTarget = normalizeForMatch(targetText);
   let firstMatchSet = false;
 
   return (
@@ -153,18 +170,34 @@ function HtmlModal({
         <div className="overflow-y-auto p-4">
           <pre className="font-code text-xs text-slate-300 whitespace-pre leading-relaxed">
             {lines.map((line, i) => {
-              const isMatch = line.toLowerCase().includes(lowerTarget);
+              const decodedLine = decodeEntities(line);
+              const normLine = normalizeForMatch(line);
+              const idx = normTarget ? normLine.indexOf(normTarget) : -1;
+              const isMatch = idx !== -1;
+
               let ref: React.RefObject<HTMLSpanElement | null> | undefined;
               if (isMatch && !firstMatchSet) {
                 firstMatchSet = true;
                 ref = firstMatchRef;
               }
+
+              if (isMatch) {
+                const before = decodedLine.slice(0, idx);
+                const matched = decodedLine.slice(idx, idx + normTarget.length);
+                const after = decodedLine.slice(idx + normTarget.length);
+                return (
+                  <span key={i} ref={ref} className="block">
+                    {before}
+                    <mark className="bg-yellow-400/25 text-yellow-200 rounded px-0.5 not-italic">
+                      {matched}
+                    </mark>
+                    {after}
+                  </span>
+                );
+              }
+
               return (
-                <span
-                  key={i}
-                  ref={ref}
-                  className={isMatch ? "block bg-yellow-400/15 rounded" : "block"}
-                >
+                <span key={i} className="block">
                   {line || " "}
                 </span>
               );
